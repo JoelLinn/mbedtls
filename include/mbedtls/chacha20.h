@@ -36,6 +36,7 @@ extern "C" {
 #if !defined(MBEDTLS_CHACHA20_ALT)
 
 typedef struct mbedtls_chacha20_context {
+    uint32_t MBEDTLS_PRIVATE(rounds);       /*! The number of double rounds. */
     uint32_t MBEDTLS_PRIVATE(state)[16];          /*! The state (before round operations). */
     uint8_t  MBEDTLS_PRIVATE(keystream8)[64];     /*! Leftover keystream bytes. */
     size_t MBEDTLS_PRIVATE(keystream_bytes_used); /*! Number of keystream bytes already used. */
@@ -92,6 +93,24 @@ void mbedtls_chacha20_free(mbedtls_chacha20_context *ctx);
  */
 int mbedtls_chacha20_setkey(mbedtls_chacha20_context *ctx,
                             const unsigned char key[32]);
+
+/**
+ * \brief           This function sets number of rounds.
+ *
+ * \note            This function must be called before you start to
+ *                  encrypt/decrypt data.
+ *
+ * \param ctx       The ChaCha20 context to which the round count should be set.
+ *                  It must be initialized.
+ * \param rounds    The number of rounds. This must currently be a multiple of
+ *                  two.
+ *
+ * \return          \c 0 on success.
+ * \return          #MBEDTLS_ERR_CHACHA20_BAD_INPUT_DATA if ctx is NULL or
+ *                  number of rounds is invalid or not supported.
+ */
+int mbedtls_chacha20_setrounds(mbedtls_chacha20_context *ctx,
+                               uint32_t rounds);
 
 /**
  * \brief           This function sets the nonce and initial counter value.

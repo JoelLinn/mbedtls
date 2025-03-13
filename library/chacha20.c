@@ -101,7 +101,8 @@ static void chacha20_inner_block(uint32_t state[16])
  * \param keystream     Generated keystream bytes are written to this buffer.
  */
 static void chacha20_block(const uint32_t initial_state[16],
-                           unsigned char keystream[64])
+                           unsigned char keystream[64],
+                           uint32_t rounds)
 {
     uint32_t working_state[16];
     size_t i;
@@ -110,7 +111,8 @@ static void chacha20_block(const uint32_t initial_state[16],
            initial_state,
            CHACHA20_BLOCK_SIZE_BYTES);
 
-    for (i = 0U; i < 10U; i++) {
+    /* Only even number of rounds supported, round up for security. */
+    for (i = 0U; i < (rounds + 1) / 2; i++) {
         chacha20_inner_block(working_state);
     }
 
@@ -145,6 +147,8 @@ void mbedtls_chacha20_init(mbedtls_chacha20_context *ctx)
     mbedtls_platform_zeroize(ctx->state, sizeof(ctx->state));
     mbedtls_platform_zeroize(ctx->keystream8, sizeof(ctx->keystream8));
 
+    /* Set default rounds for ChaCha20 */
+    ctx->rounds = 20;
     /* Initially, there's no keystream bytes available */
     ctx->keystream_bytes_used = CHACHA20_BLOCK_SIZE_BYTES;
 }
@@ -176,6 +180,21 @@ int mbedtls_chacha20_setkey(mbedtls_chacha20_context *ctx,
     ctx->state[11] = MBEDTLS_GET_UINT32_LE(key, 28);
 
     return 0;
+}
+
+int mbedtls_chacha20_setrounds(mbedtls_chacha20_context *ctx,
+                               uint32_t rounds)
+{
+    /* Specialize on some values. */
+    switch (rounds) {
+        case 8:
+        case 12:
+        case 20:
+            ctx->rounds = rounds;
+            return 0;
+        default:
+            return 1;
+    }
 }
 
 int mbedtls_chacha20_starts(mbedtls_chacha20_context *ctx,
@@ -218,7 +237,7 @@ int mbedtls_chacha20_update(mbedtls_chacha20_context *ctx,
     /* Process full blocks */
     while (size >= CHACHA20_BLOCK_SIZE_BYTES) {
         /* Generate new keystream block and increment counter */
-        chacha20_block(ctx->state, ctx->keystream8);
+        chacha20_block(ctx->state, ctx->keystream8, ctx->rounds);
         ctx->state[CHACHA20_CTR_INDEX]++;
 
         mbedtls_xor(output + offset, input + offset, ctx->keystream8, 64U);
@@ -230,7 +249,7 @@ int mbedtls_chacha20_update(mbedtls_chacha20_context *ctx,
     /* Last (partial) block */
     if (size > 0U) {
         /* Generate new keystream block and increment counter */
-        chacha20_block(ctx->state, ctx->keystream8);
+        chacha20_block(ctx->state, ctx->keystream8, ctx->rounds);
         ctx->state[CHACHA20_CTR_INDEX]++;
 
         mbedtls_xor(output + offset, input + offset, ctx->keystream8, size);
