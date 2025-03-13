@@ -78,10 +78,14 @@ enum mbedtls_cipher_base_index {
     MBEDTLS_CIPHER_BASE_INDEX_CCM_CAMELLIA,
 #endif
 #if defined(MBEDTLS_CHACHA20_C)
+    MBEDTLS_CIPHER_BASE_INDEX_CHACHA8_BASE,
+    MBEDTLS_CIPHER_BASE_INDEX_CHACHA12_BASE,
     MBEDTLS_CIPHER_BASE_INDEX_CHACHA20_BASE,
 #endif
 #if defined(MBEDTLS_CHACHAPOLY_C)
-    MBEDTLS_CIPHER_BASE_INDEX_CHACHAPOLY_BASE,
+    MBEDTLS_CIPHER_BASE_INDEX_CHACHA8POLY_BASE,
+    MBEDTLS_CIPHER_BASE_INDEX_CHACHA12POLY_BASE,
+    MBEDTLS_CIPHER_BASE_INDEX_CHACHA20POLY_BASE,
 #endif
 #if defined(MBEDTLS_DES_C)
     MBEDTLS_CIPHER_BASE_INDEX_DES_EDE3,
@@ -1911,7 +1915,7 @@ static int chacha20_stream_wrap(void *ctx,  size_t length,
     return ret;
 }
 
-static void *chacha20_ctx_alloc(void)
+static void *chacha20_ctx_alloc(uint32_t rounds)
 {
     mbedtls_chacha20_context *ctx;
     ctx = mbedtls_calloc(1, sizeof(mbedtls_chacha20_context));
@@ -1921,8 +1925,24 @@ static void *chacha20_ctx_alloc(void)
     }
 
     mbedtls_chacha20_init(ctx);
+    mbedtls_chacha20_setrounds(ctx, rounds);
 
     return ctx;
+}
+
+static void *chacha20_ctx_alloc_8(void)
+{
+    return chacha20_ctx_alloc(8);
+}
+
+static void *chacha20_ctx_alloc_12(void)
+{
+    return chacha20_ctx_alloc(12);
+}
+
+static void *chacha20_ctx_alloc_20(void)
+{
+    return chacha20_ctx_alloc(20);
 }
 
 static void chacha20_ctx_free(void *ctx)
@@ -1931,6 +1951,62 @@ static void chacha20_ctx_free(void *ctx)
     mbedtls_free(ctx);
 }
 
+static const mbedtls_cipher_base_t chacha8_base_info = {
+    MBEDTLS_CIPHER_ID_CHACHA8,
+    NULL,
+#if defined(MBEDTLS_CIPHER_MODE_CBC)
+    NULL,
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_CFB)
+    NULL,
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_OFB)
+    NULL,
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_CTR)
+    NULL,
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_XTS)
+    NULL,
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_STREAM)
+    chacha20_stream_wrap,
+#endif
+    chacha20_setkey_wrap,
+#if !defined(MBEDTLS_BLOCK_CIPHER_NO_DECRYPT)
+    chacha20_setkey_wrap,
+#endif
+    chacha20_ctx_alloc_8,
+    chacha20_ctx_free
+};
+static const mbedtls_cipher_base_t chacha12_base_info = {
+    MBEDTLS_CIPHER_ID_CHACHA12,
+    NULL,
+#if defined(MBEDTLS_CIPHER_MODE_CBC)
+    NULL,
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_CFB)
+    NULL,
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_OFB)
+    NULL,
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_CTR)
+    NULL,
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_XTS)
+    NULL,
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_STREAM)
+    chacha20_stream_wrap,
+#endif
+    chacha20_setkey_wrap,
+#if !defined(MBEDTLS_BLOCK_CIPHER_NO_DECRYPT)
+    chacha20_setkey_wrap,
+#endif
+    chacha20_ctx_alloc_12,
+    chacha20_ctx_free
+};
 static const mbedtls_cipher_base_t chacha20_base_info = {
     MBEDTLS_CIPHER_ID_CHACHA20,
     NULL,
@@ -1956,8 +2032,28 @@ static const mbedtls_cipher_base_t chacha20_base_info = {
 #if !defined(MBEDTLS_BLOCK_CIPHER_NO_DECRYPT)
     chacha20_setkey_wrap,
 #endif
-    chacha20_ctx_alloc,
+    chacha20_ctx_alloc_20,
     chacha20_ctx_free
+};
+static const mbedtls_cipher_info_t chacha8_info = {
+    "CHACHA8",
+    1,
+    12 >> MBEDTLS_IV_SIZE_SHIFT,
+    256 >> MBEDTLS_KEY_BITLEN_SHIFT,
+    MBEDTLS_MODE_STREAM,
+    MBEDTLS_CIPHER_CHACHA8,
+    0,
+    MBEDTLS_CIPHER_BASE_INDEX_CHACHA8_BASE
+};
+static const mbedtls_cipher_info_t chacha12_info = {
+    "CHACHA12",
+    1,
+    12 >> MBEDTLS_IV_SIZE_SHIFT,
+    256 >> MBEDTLS_KEY_BITLEN_SHIFT,
+    MBEDTLS_MODE_STREAM,
+    MBEDTLS_CIPHER_CHACHA12,
+    0,
+    MBEDTLS_CIPHER_BASE_INDEX_CHACHA12_BASE
 };
 static const mbedtls_cipher_info_t chacha20_info = {
     "CHACHA20",
@@ -1988,7 +2084,7 @@ static int chachapoly_setkey_wrap(void *ctx,
     return 0;
 }
 
-static void *chachapoly_ctx_alloc(void)
+static void *chachapoly_ctx_alloc(uint32_t rounds)
 {
     mbedtls_chachapoly_context *ctx;
     ctx = mbedtls_calloc(1, sizeof(mbedtls_chachapoly_context));
@@ -1998,8 +2094,24 @@ static void *chachapoly_ctx_alloc(void)
     }
 
     mbedtls_chachapoly_init(ctx);
+    mbedtls_chacha20_setrounds(&ctx->chacha20_ctx, rounds);
 
     return ctx;
+}
+
+static void *chachapoly8_ctx_alloc(void)
+{
+    return chachapoly_ctx_alloc(8);
+}
+
+static void *chachapoly12_ctx_alloc(void)
+{
+    return chachapoly_ctx_alloc(12);
+}
+
+static void *chachapoly20_ctx_alloc(void)
+{
+    return chachapoly_ctx_alloc(20);
 }
 
 static void chachapoly_ctx_free(void *ctx)
@@ -2008,7 +2120,63 @@ static void chachapoly_ctx_free(void *ctx)
     mbedtls_free(ctx);
 }
 
-static const mbedtls_cipher_base_t chachapoly_base_info = {
+static const mbedtls_cipher_base_t chachapoly8_base_info = {
+    MBEDTLS_CIPHER_ID_CHACHA8,
+    NULL,
+#if defined(MBEDTLS_CIPHER_MODE_CBC)
+    NULL,
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_CFB)
+    NULL,
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_OFB)
+    NULL,
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_CTR)
+    NULL,
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_XTS)
+    NULL,
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_STREAM)
+    NULL,
+#endif
+    chachapoly_setkey_wrap,
+#if !defined(MBEDTLS_BLOCK_CIPHER_NO_DECRYPT)
+    chachapoly_setkey_wrap,
+#endif
+    chachapoly8_ctx_alloc,
+    chachapoly_ctx_free
+};
+static const mbedtls_cipher_base_t chachapoly12_base_info = {
+    MBEDTLS_CIPHER_ID_CHACHA12,
+    NULL,
+#if defined(MBEDTLS_CIPHER_MODE_CBC)
+    NULL,
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_CFB)
+    NULL,
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_OFB)
+    NULL,
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_CTR)
+    NULL,
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_XTS)
+    NULL,
+#endif
+#if defined(MBEDTLS_CIPHER_MODE_STREAM)
+    NULL,
+#endif
+    chachapoly_setkey_wrap,
+#if !defined(MBEDTLS_BLOCK_CIPHER_NO_DECRYPT)
+    chachapoly_setkey_wrap,
+#endif
+    chachapoly12_ctx_alloc,
+    chachapoly_ctx_free
+};
+static const mbedtls_cipher_base_t chachapoly20_base_info = {
     MBEDTLS_CIPHER_ID_CHACHA20,
     NULL,
 #if defined(MBEDTLS_CIPHER_MODE_CBC)
@@ -2033,10 +2201,30 @@ static const mbedtls_cipher_base_t chachapoly_base_info = {
 #if !defined(MBEDTLS_BLOCK_CIPHER_NO_DECRYPT)
     chachapoly_setkey_wrap,
 #endif
-    chachapoly_ctx_alloc,
+    chachapoly20_ctx_alloc,
     chachapoly_ctx_free
 };
-static const mbedtls_cipher_info_t chachapoly_info = {
+static const mbedtls_cipher_info_t chacha8poly_info = {
+    "CHACHA8-POLY1305",
+    1,
+    12 >> MBEDTLS_IV_SIZE_SHIFT,
+    256 >> MBEDTLS_KEY_BITLEN_SHIFT,
+    MBEDTLS_MODE_CHACHAPOLY,
+    MBEDTLS_CIPHER_CHACHA8_POLY1305,
+    0,
+    MBEDTLS_CIPHER_BASE_INDEX_CHACHA8POLY_BASE
+};
+static const mbedtls_cipher_info_t chacha12poly_info = {
+    "CHACHA12-POLY1305",
+    1,
+    12 >> MBEDTLS_IV_SIZE_SHIFT,
+    256 >> MBEDTLS_KEY_BITLEN_SHIFT,
+    MBEDTLS_MODE_CHACHAPOLY,
+    MBEDTLS_CIPHER_CHACHA12_POLY1305,
+    0,
+    MBEDTLS_CIPHER_BASE_INDEX_CHACHA12POLY_BASE
+};
+static const mbedtls_cipher_info_t chacha20poly_info = {
     "CHACHA20-POLY1305",
     1,
     12 >> MBEDTLS_IV_SIZE_SHIFT,
@@ -2044,7 +2232,7 @@ static const mbedtls_cipher_info_t chachapoly_info = {
     MBEDTLS_MODE_CHACHAPOLY,
     MBEDTLS_CIPHER_CHACHA20_POLY1305,
     0,
-    MBEDTLS_CIPHER_BASE_INDEX_CHACHAPOLY_BASE
+    MBEDTLS_CIPHER_BASE_INDEX_CHACHA20POLY_BASE
 };
 #endif /* MBEDTLS_CHACHAPOLY_C */
 
@@ -2394,11 +2582,15 @@ const mbedtls_cipher_definition_t mbedtls_cipher_definitions[] =
 #endif /* MBEDTLS_DES_C */
 
 #if defined(MBEDTLS_CHACHA20_C)
+    { MBEDTLS_CIPHER_CHACHA8,              &chacha8_info },
+    { MBEDTLS_CIPHER_CHACHA12,             &chacha12_info },
     { MBEDTLS_CIPHER_CHACHA20,             &chacha20_info },
 #endif
 
 #if defined(MBEDTLS_CHACHAPOLY_C)
-    { MBEDTLS_CIPHER_CHACHA20_POLY1305,    &chachapoly_info },
+    { MBEDTLS_CIPHER_CHACHA8_POLY1305,     &chacha8poly_info },
+    { MBEDTLS_CIPHER_CHACHA12_POLY1305,    &chacha12poly_info },
+    { MBEDTLS_CIPHER_CHACHA20_POLY1305,    &chacha20poly_info },
 #endif
 
 #if defined(MBEDTLS_NIST_KW_C)
@@ -2445,10 +2637,14 @@ const mbedtls_cipher_base_t *mbedtls_cipher_base_lookup_table[] = {
     [MBEDTLS_CIPHER_BASE_INDEX_CCM_CAMELLIA] = &ccm_camellia_info,
 #endif
 #if defined(MBEDTLS_CHACHA20_C)
+    [MBEDTLS_CIPHER_BASE_INDEX_CHACHA8_BASE] = &chacha8_base_info,
+    [MBEDTLS_CIPHER_BASE_INDEX_CHACHA12_BASE] = &chacha12_base_info,
     [MBEDTLS_CIPHER_BASE_INDEX_CHACHA20_BASE] = &chacha20_base_info,
 #endif
 #if defined(MBEDTLS_CHACHAPOLY_C)
-    [MBEDTLS_CIPHER_BASE_INDEX_CHACHAPOLY_BASE] = &chachapoly_base_info,
+    [MBEDTLS_CIPHER_BASE_INDEX_CHACHA8POLY_BASE] = &chachapoly8_base_info,
+    [MBEDTLS_CIPHER_BASE_INDEX_CHACHA12POLY_BASE] = &chachapoly12_base_info,
+    [MBEDTLS_CIPHER_BASE_INDEX_CHACHA20POLY_BASE] = &chachapoly20_base_info,
 #endif
 #if defined(MBEDTLS_DES_C)
     [MBEDTLS_CIPHER_BASE_INDEX_DES_EDE3] = &des_ede3_info,
